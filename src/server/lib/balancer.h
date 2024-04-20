@@ -1,22 +1,32 @@
-#include <vector.h>
+#pragma once
+
+#include "public.h"
+
+#include <unordered_map>
+#include <vector>
+#include <list>
+#include <string>
 
 namespace NSlicer {
 
 class Balancer
 {
 public:
-    Balancer(int64_t NodeCount);
+    Balancer();
+
+    void Initialize(const std::vector<std::string>& nodeIds);
 
     void UpdateMetrics(const std::vector<TMetric>& metrics);
 
-    std::vector<TRangesToNode> GetMappingRangesToNodes();
+    std::list<TRangesToNode> GetMappingRangesToNodes();
 
-    int64_t RegisterNewNode();
+    void RegisterNewNode(std::string nodeId);
 
-    void UnregisterNode(int64_t NodeId);
+    void UnregisterNode(std::string nodeId);
 
 private:
-
+    std::list<TRangesToNode> MappingRangesToNodes_;
+    //std::vector<TRange>
 };
 
 } // NSlicer
