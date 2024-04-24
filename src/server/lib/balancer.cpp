@@ -10,11 +10,11 @@ namespace NSlicer {
             int64_t nodeCount = nodeIds.size();
             uint64_t maxKey = std::numeric_limits<uint64_t>::max();
             uint64_t currentStart = 0;
-            uint64_t rangeSize = (maxKey / nodeCount) + 1;
+            uint64_t rangeSize = (maxKey / nodeCount);
 
             for (int64_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex) {
                 uint64_t end;
-                if (currentStart > maxKey - rangeSize) {
+                if (nodeIndex == nodeCount - 1 || currentStart > maxKey - rangeSize) {
                     end = maxKey;
                 } else {
                     end = currentStart + rangeSize;

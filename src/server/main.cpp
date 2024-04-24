@@ -9,5 +9,6 @@ int main() {
     balancer.Initialize(NodeIds);
     auto res = balancer.GetMappingRangesToNodes();
     std::cout << res.begin()->NodeId << std::endl;
+    std::cout << res.begin()->Ranges[0].Start << " " <<  res.begin()->Ranges[0].End << std::endl;
     return 0;
 }

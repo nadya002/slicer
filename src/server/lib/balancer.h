@@ -12,7 +12,7 @@ namespace NSlicer {
 class Balancer
 {
 public:
-    Balancer();
+    //Balancer();
 
     void Initialize(const std::vector<std::string>& nodeIds);
 
