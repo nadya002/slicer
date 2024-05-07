@@ -1,9 +1,16 @@
-# Подключение GoogleTest как дополнительной библиотеки
-add_subdirectory(contrib/googletest)
-add_subdirectory(tests)
+cmake_minimum_required(VERSION 3.0)
 
-# включаем тестирование через CMake
+project(libcam)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 enable_testing()
 
-# Используем Google Test в проекте
-# include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+add_subdirectory(contrib/googletest)
+add_subdirectory(contrib/cpp-httplib)
+add_subdirectory(contrib/json)
+add_subdirectory(tests)
+
+add_subdirectory(src/server/lib)
+add_subdirectory(src/server/cmd)

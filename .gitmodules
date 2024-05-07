@@ -1,3 +1,9 @@
 [submodule "contrib/googletest"]
 	path = contrib/googletest
 	url = https://github.com/google/googletest.git
+[submodule "contrib/cpp-httplib"]
+	path = contrib/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "contrib/json"]
+	path = contrib/json
+	url = https://github.com/nlohmann/json.git

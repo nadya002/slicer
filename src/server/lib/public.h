@@ -1,5 +1,9 @@
+#pragma once
+
 #include <vector>
 #include <string>
+#include <list>
+#include <cstdint>
 
 namespace NSlicer {
 
@@ -12,13 +16,13 @@ struct TRange
 struct TMetric
 {
     TRange Range;
-    int64_t Value_;
+    double Value_;
 };
 
 struct TRangesToNode
 {
     std::string NodeId;
-    std::vector<TRange> Ranges;
+    std::list<TRange> Ranges;
 };
 
 } // NSlicer
