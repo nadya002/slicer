@@ -10,7 +10,10 @@ enable_testing()
 add_subdirectory(contrib/googletest)
 add_subdirectory(contrib/cpp-httplib)
 add_subdirectory(contrib/json)
+add_subdirectory(contrib/spdlog)
+
 add_subdirectory(tests)
 
 add_subdirectory(src/server/lib)
+add_subdirectory(src/server/http)
 add_subdirectory(src/server/cmd)

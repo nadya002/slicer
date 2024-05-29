@@ -12,6 +12,8 @@ RUN mkdir build
 WORKDIR /slicer/build
 RUN cmake .. && make
 
+EXPOSE 8080
+
 # FROM scratch
 # COPY --from=builder /slicer/build/src/server/cmd/ServerSlicer /
 # CMD ["/ServerSlicer"]

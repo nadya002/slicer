@@ -50,6 +50,16 @@ void prettyPrint(const std::vector<TRangesToNode>& ranges)
     }
 }
 
+void prettyPrint(const std::vector<TRangesToNode>& ranges, std::map<uint64_t, double>& rangeToMetric)
+{
+    for (auto range : ranges) {
+        std::cerr << range.NodeId << std::endl;
+        for (auto val : range.Ranges) {
+            std::cerr << val.Start << " " << val.End << " " << rangeToMetric[val.Start] << std::endl;
+        }
+    }
+}
+
 // TEST(InitializeTest, SimpleTest) {
 //     std::vector<std::string> NodeIds;
 //     NodeIds.push_back("localhost");
@@ -122,12 +132,12 @@ TEST(MergeTest, SeveralNodes) {
     balancer.Initialize(NodeIds);
     auto res = balancer.GetMappingRangesToNodes();
     std::cerr << "before balance" << std::endl;
-    prettyPrint(res);
     std::cerr << std::endl;
     //EXPECT_TRUE(res.begin()->Ranges.size() > 50 && res.begin()->Ranges.size() < 200);
     //EXPECT_TRUE(CheckAllRanges(res));
     auto ranges = ExtractAllNodes(res);
     std::vector<TMetric> metrics;
+    std::map<uint64_t, double> RangeToMetric;
     int i = 0;
     for (auto& val : ranges) {
         //std::cerr << val.Start << " " << val.End << " ";
@@ -136,18 +146,23 @@ TEST(MergeTest, SeveralNodes) {
             price = 100;
         }
         i++;
+        RangeToMetric[val.Start] = price;
         metrics.push_back(TMetric{
             .Range = val,
             .Value_ = price
         });
     }
+     prettyPrint(res, RangeToMetric);
     //std::cerr << std::endl;
     balancer.UpdateMetrics(metrics);
     auto resAfterBalance = balancer.GetMappingRangesToNodes();
 
     std::cerr << "after balance" << std::endl;
-    prettyPrint(resAfterBalance);
+    prettyPrint(resAfterBalance, RangeToMetric);
     std::cerr << std::endl;
+    balancer.UnregisterNode({NodeIds[0]});
+    auto resAfterUnregister = balancer.GetMappingRangesToNodes();
+    prettyPrint(resAfterUnregister, RangeToMetric);
     // std::cerr << resAfterBalance[0].Ranges.size() << std::endl;
     // std::cerr << resAfterBalance[1].Ranges.size() << std::endl;
 }

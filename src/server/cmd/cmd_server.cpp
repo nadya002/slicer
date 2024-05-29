@@ -1,84 +1,57 @@
 #include <iostream>
 #include <vector>
+#include <thread>
 
-#include "httplib.h"
-#include "nlohmann/json.hpp"
-#include "balancer.h"
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "http.h"
+
+// void RebalanceThread()
+// {
+//     // wait until main() sends data
+//     //std::unique_lock lk(m);
+//     //cv.wait(lk, []{ return ready; });
+
+//     // after the wait, we own the lock
+//     std::cout << "Worker thread is processing data\n";
+//     data += " after processing";
+
+//     // send data back to main()
+//     processed = true;
+//     std::cout << "Worker thread signals data processing completed\n";
+
+//     // manual unlocking is done before notifying, to avoid waking up
+//     // the waiting thread only to block again (see notify_one for details)
+//     //lk.unlock();
+//     //cv.notify_one();
+// }
 
 int main() {
-    // Создаем сервер
-    httplib::Server svr;
-    NSlicer::Balancer balanser;
-    bool flag = true;
-    // Обрабатываем GET запрос на корневой URL (/)
-    svr.Get("/", [&](const httplib::Request &req, httplib::Response &res) {
-        std::cerr << "Strart" << std::endl;
-        nlohmann::json jsonObject;
-        jsonObject["name"] = "John";
-        std::string jsonString = jsonObject.dump();
+    auto main_logger = spdlog::basic_logger_mt("main_logger", "main_logs.txt");
+    // Устанавливаем глобальный уровень логгированния
+    spdlog::set_level(spdlog::level::info); // Set global log level to debug
+    //file_logger->set_level(spdlog::level::info);
+    main_logger->flush_on(spdlog::level::info);
 
-        res.set_content(jsonString, "json");
-    });
+    //spdlog::register_logger(main_logger);
 
-    svr.Post("/api/v1/notify_nodes", [&](const httplib::Request &req, httplib::Response &res) {
-        std::cerr << "Strart" << std::endl;
-        std::vector<std::string> NodeIds_;
-        auto body = req.body;
-        std::cerr << "Body " << body << std::endl;
+    // auto test_logger = spdlog::get("main_logger");
+    // test_logger->info("getlogger::helloworld");
 
-        auto jsonObject = nlohmann::json::parse(body);
 
-         std::cerr << "succsess" << body << std::endl;
+    // spdlog::info("Welcome to spdlog!");
+    //for (int i = 0; i < 1000; i++) {
+    main_logger->info("Start server");
+    //}
+    // main_logger->info("Start server");
+    //spdlog::shutdown();
 
-        auto newHosts = jsonObject["New"];
-        auto hosts = newHosts["Hosts"];
-        std::cerr << "NodeIds " << std::endl;
-        for (auto host : hosts) {
-            NodeIds_.push_back(host["Host"]);
-            std::cerr << "NodeId " << NodeIds_.back() << std::endl;
-        }
-        if (flag) {
-            balanser.Initialize(NodeIds_);
-        }
-        //nlohmann::json jsonObject;
-        //jsonObject["name"] = "John";
-        //std::string jsonString = jsonObject.dump();
+    NSlicer::Balancer Balancer_;
+    std::thread rebalance(NSlicer::RebalancingThread, &Balancer_);
+    //spdlog::shutdown();
 
-       // res.set_content(jsonString, "json");
-    });
-
-    svr.Get("/api/v1/get_mapping", [&](const httplib::Request &req, httplib::Response &res) {
-        std::cerr << "Get mapping" << std::endl;
-
-        nlohmann::json jsonObject;
-        std::vector<NSlicer::TRangesToNode> rangesToNode = balanser.GetMappingRangesToNodes();
-        jsonObject["RangeNodePairs"] = nlohmann::json::array();
-        for (auto& value : rangesToNode) {
-            for (auto& range : value.Ranges) {
-                nlohmann::json addrangeToNode;
-                addrangeToNode["Host"] = value.NodeId;
-                addrangeToNode["Range"]["From"] = range.Start;
-                addrangeToNode["Range"]["To"] = range.End;
-                jsonObject["RangeNodePairs"].push_back(addrangeToNode);
-            }
-        }
-
-        //jsonObject["name"] = "John";
-        std::string jsonString = jsonObject.dump();
-
-        res.set_content(jsonString, "application/json");
-    });
-
-    // Обрабатываем GET запрос на URL /hello с параметром name
-    // svr.Get("/hello", [](const httplib::Request &req, httplib::Response &res) {
-    //     auto name = req.get_param_value("name");
-    //     std::string greeting = "Hello, " + name + "!";
-    //     res.set_content(greeting, "json");
-    // });
-
-    // Запускаем сервер на localhost на порту 8080
-    std::cout << "Server listening on http://localhost:8080" << std::endl;
-    svr.listen("localhost", 8080);
-
+    NSlicer::THttpSlicerServer server(&Balancer_);
+    server.Start();
+    rebalance.join();
     return 0;
 }
