@@ -2,11 +2,16 @@
 
 #include "nlohmann/json.hpp"
 
-namespace NSlicer {
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+
+namespace NHttp {
 
 THttpSlicerServer::THttpSlicerServer(NSlicer::Balancer* balancer)
     : Balancer_(balancer)
 {
+    HttpLogger_ = spdlog::basic_logger_mt("http_logger", "logger/http_logger.txt");
+
     svr.Get("/", [](const httplib::Request &req, httplib::Response &res) {
         res.set_content("Hello, World!", "text/plain");
     });
@@ -16,11 +21,12 @@ THttpSlicerServer::THttpSlicerServer(NSlicer::Balancer* balancer)
     InitializeSendMetrics();
 }
 
-void THttpSlicerServer::Start()
+void THttpSlicerServer::Start(int port)
 {
-    // Запускаем сервер на localhost на порту 8080
-    std::cout << "Server listening on http://localhost:8080" << std::endl;
-    svr.listen("localhost", 8081);
+    HttpLogger_->info("Server listening on http://localhost:" + std::to_string(port));
+    spdlog::info("Server listening on http://localhost:" + std::to_string(port));
+
+    svr.listen("localhost", port);
 }
 
 void THttpSlicerServer::InitializeNotifyNodes()
@@ -87,4 +93,9 @@ void THttpSlicerServer::InitializeSendMetrics()
     });
 }
 
-} // NSlicer
+int GetPort()
+{
+    return KDefaultPort;
+}
+
+} // NHttp

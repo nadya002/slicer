@@ -40,7 +40,6 @@ Balancer::Balancer()
 {
     BalancingLogger_ = spdlog::basic_logger_mt("rebalance_logger", "logger/rebalancing_logger.txt");
     BalancingLogger_->flush_on(spdlog::level::info);
-    //BalancingLogger_->flush();
 }
 
 Balancer::~Balancer()
@@ -70,7 +69,7 @@ void Balancer::Initialize(const std::vector<std::string>& nodeIds)
 
 void Balancer::UpdateMetrics(const std::vector<TMetric>& metrics)
 {
-    std::cerr << "UpdateMetrics" << std::endl;
+    BalancingLogger_->info("UpdateMetrics");
     {
         std::lock_guard<std::mutex> lk(Mutex_);
         for (auto value : metrics) {
@@ -81,7 +80,7 @@ void Balancer::UpdateMetrics(const std::vector<TMetric>& metrics)
                 throw std::invalid_argument("Unexpected range in metric");
             }
         }
-        std::cerr << "NewMetrica_=true" << std::endl;
+        BalancingLogger_->info("Finish UpdateMetrics");
         NewMetrica_ = true;
     }
     std::cerr << "notify_one" << std::endl;
@@ -90,11 +89,11 @@ void Balancer::UpdateMetrics(const std::vector<TMetric>& metrics)
 
 void Balancer::Rebalance()
 {
-    std::cerr << "wait for metrica" << std::endl;
+    BalancingLogger_->info("Wait for metrica");
     std::unique_lock<std::mutex> lk(Mutex_);
 
     while (!NewMetrica_) {
-        std::cerr << "wait" << std::endl;
+        BalancingLogger_->info("wait");
         Cv_.wait(lk, [this]{ return NewMetrica_; });
     }
     CurrentMappingStartIdToValue_ = LastMappingStartIdToValue_;
@@ -297,7 +296,6 @@ void Balancer::SplitSlices()
 {
     auto avr = ComputeAverage();
     for (auto& [nodeId, rangeList] : MappingRangesToNodes_) {
-        //std::map<uint64_t, uint64_t> HotSlicesKoef;
         rangeList.sort(TSortRangeComparator(&CurrentMappingStartIdToValue_));
         std::list<TRange>::iterator rangeIter = rangeList.begin();
         int rangeCount = rangeList.size();
@@ -420,11 +418,7 @@ double Balancer::ComputeAverage()
 }
 
 void RebalancingThread(Balancer* balancer) {
-    //auto rebalancing_logger = spdlog::basic_logger_mt("rebalance_logger", "logs.txt");
-
     while(true) {
-        //std::this_thread::sleep_for(std::chrono::seconds(1));
-        //rebalancing_logger->info("New itaration of rebalance start");
         balancer->Rebalance();
     }
 }

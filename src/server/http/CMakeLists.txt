@@ -11,6 +11,7 @@ target_link_libraries(
     httplib
 	nlohmann_json
 	Balancer
+	spdlog
 )
 
 target_include_directories(Http INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
