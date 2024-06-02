@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-add_library(Balancer balancer.cpp)
+add_library(Balancer balancer.cpp balancer_impl.cpp)
 
 target_include_directories(Balancer INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 

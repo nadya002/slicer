@@ -123,47 +123,47 @@ void prettyPrint(const std::vector<TRangesToNode>& ranges, std::map<uint64_t, do
 //     std::cerr << resAfterBalance[1].Ranges.size() << std::endl;
 // }
 
-TEST(MergeTest, SeveralNodes) {
-    std::vector<std::string> NodeIds;
-    for (int i = 0; i < 2; i++) {
-        NodeIds.push_back(std::to_string(i));
-    }
-    NSlicer::Balancer balancer;
-    balancer.Initialize(NodeIds);
-    auto res = balancer.GetMappingRangesToNodes();
-    std::cerr << "before balance" << std::endl;
-    std::cerr << std::endl;
-    //EXPECT_TRUE(res.begin()->Ranges.size() > 50 && res.begin()->Ranges.size() < 200);
-    //EXPECT_TRUE(CheckAllRanges(res));
-    auto ranges = ExtractAllNodes(res);
-    std::vector<TMetric> metrics;
-    std::map<uint64_t, double> RangeToMetric;
-    int i = 0;
-    for (auto& val : ranges) {
-        //std::cerr << val.Start << " " << val.End << " ";
-        double price = 0;
-        if (i < 2) {
-            price = 100;
-        }
-        i++;
-        RangeToMetric[val.Start] = price;
-        metrics.push_back(TMetric{
-            .Range = val,
-            .Value_ = price
-        });
-    }
-     prettyPrint(res, RangeToMetric);
-    //std::cerr << std::endl;
-    balancer.UpdateMetrics(metrics);
-    auto resAfterBalance = balancer.GetMappingRangesToNodes();
+// TEST(MergeTest, SeveralNodes) {
+//     std::vector<std::string> NodeIds;
+//     for (int i = 0; i < 2; i++) {
+//         NodeIds.push_back(std::to_string(i));
+//     }
+//     NSlicer::TBalancer balancer;
+//     balancer.NotifyNodes(NodeIds, {});
+//     auto res = balancer.GetMappingRangesToNodes();
+//     std::cerr << "before balance" << std::endl;
+//     std::cerr << std::endl;
+//     //EXPECT_TRUE(res.begin()->Ranges.size() > 50 && res.begin()->Ranges.size() < 200);
+//     //EXPECT_TRUE(CheckAllRanges(res));
+//     auto ranges = ExtractAllNodes(res);
+//     std::vector<TMetric> metrics;
+//     std::map<uint64_t, double> RangeToMetric;
+//     int i = 0;
+//     for (auto& val : ranges) {
+//         //std::cerr << val.Start << " " << val.End << " ";
+//         double price = 0;
+//         if (i < 2) {
+//             price = 100;
+//         }
+//         i++;
+//         RangeToMetric[val.Start] = price;
+//         metrics.push_back(TMetric{
+//             .Range = val,
+//             .Value_ = price
+//         });
+//     }
+//      prettyPrint(res, RangeToMetric);
+//     //std::cerr << std::endl;
+//     balancer.UpdateMetrics(metrics);
+//     auto resAfterBalance = balancer.GetMappingRangesToNodes();
 
-    std::cerr << "after balance" << std::endl;
-    prettyPrint(resAfterBalance, RangeToMetric);
-    std::cerr << std::endl;
-    balancer.UnregisterNode({NodeIds[0]});
-    auto resAfterUnregister = balancer.GetMappingRangesToNodes();
-    prettyPrint(resAfterUnregister, RangeToMetric);
-    // std::cerr << resAfterBalance[0].Ranges.size() << std::endl;
-    // std::cerr << resAfterBalance[1].Ranges.size() << std::endl;
-}
+//     std::cerr << "after balance" << std::endl;
+//     prettyPrint(resAfterBalance, RangeToMetric);
+//     std::cerr << std::endl;
+//     balancer.UnregisterNode({NodeIds[0]});
+//     auto resAfterUnregister = balancer.GetMappingRangesToNodes();
+//     prettyPrint(resAfterUnregister, RangeToMetric);
+//     // std::cerr << resAfterBalance[0].Ranges.size() << std::endl;
+//     // std::cerr << resAfterBalance[1].Ranges.size() << std::endl;
+// }
 

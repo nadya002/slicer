@@ -3,7 +3,7 @@
 #include "public.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
-
+#include "balancer_impl.h"
 #include <unordered_map>
 #include <vector>
 #include <list>
@@ -12,55 +12,48 @@
 
 namespace NSlicer {
 
-class Balancer
+struct TBalancerSnapshot
+{
+    BalancerState GetMapping();
+    void Apply(const BalancerDiff& balancerDiff);
+
+    BalancerState state;
+};
+
+class TBalancer
 {
 public:
-    Balancer();
-    ~Balancer();
+    explicit TBalancer(const BalancerState& balancerState = {});
 
-    void Initialize(const std::vector<std::string>& nodeIds);
+    ~TBalancer();
 
     void UpdateMetrics(const std::vector<TMetric>& metrics);
 
-    std::vector<TRangesToNode> GetMappingRangesToNodes();
+    BalancerDiff GetMappingRangesToNodes();
 
-    void RegisterNewNodes(const std::vector<std::string>& nodeIds);
-
-    void UnregisterNode(const std::vector<std::string>& nodeIds);
-
-    void Rebalance();
+    void NotifyNodes(
+        const std::vector<std::string>& newNodeIds,
+        const std::vector<std::string>& deletedNodeIds);
 
 private:
-    class TSortRangeComparator {
-    public:
-        std::unordered_map<uint64_t, double>* CurrentMappingStartIdToValue_;
+    BalancerImpl BalancerImpl_;
+    TBalancerSnapshot Snapshot_;
+    std::vector<TMetric> LastMetrics_;
 
-        TSortRangeComparator(std::unordered_map<uint64_t, double>* mappingStartIdToValue)
-            : CurrentMappingStartIdToValue_(mappingStartIdToValue) {}
-
-        bool operator()(const TRange& a, const TRange& b) {
-            return (*CurrentMappingStartIdToValue_)[a.Start] > (*CurrentMappingStartIdToValue_)[b.Start];
-        }
-    };
-
-    std::unordered_map<std::string, std::list<TRange>> MappingRangesToNodes_;
-    std::unordered_map<uint64_t, double> CurrentMappingStartIdToValue_;
-    std::unordered_map<uint64_t, double> LastMappingStartIdToValue_;
-
-    std::unordered_map<uint64_t, uint64_t> MappingStartIdToEndId_;
     std::condition_variable Cv_;
-    std::mutex Mutex_;
+
+    std::mutex BalancerImplMutex_;
+    std::mutex SnapshotMutex_;
+    std::mutex MetricsMutex_;
+
+    std::thread RebalancingThread_;
+
     bool NewMetrica_ = false;
-    std::shared_ptr<spdlog::logger> BalancingLogger_;
+    bool OnDestructor_ = false;
 
-    void SplitSlices();
-    void RebalanceRanges();
-    void MergeSlices();
-    double ComputeAverage();
-    std::vector<std::list<TRange>::iterator> ExtractAllRanges();
-    std::list<TRange> SplitSpecificSlice(TRange range, int64_t n);
+    void RebalancingThreadFuncImpl();
+
+    static void RebalancingThreadFunc(TBalancer* balancer);
 };
-
-void RebalancingThread(Balancer* balancer);
 
 } // NSlicer

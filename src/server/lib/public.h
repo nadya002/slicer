@@ -25,4 +25,6 @@ struct TRangesToNode
     std::list<TRange> Ranges;
 };
 
+using TDiffs = TRangesToNode;
+
 } // NSlicer

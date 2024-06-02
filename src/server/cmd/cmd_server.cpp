@@ -7,12 +7,13 @@
 #include "http.h"
 
 int main() {
-    NSlicer::Balancer Balancer_;
-
-    std::thread rebalance(NSlicer::RebalancingThread, &Balancer_);
+    spdlog::set_level(spdlog::level::debug);
+    NSlicer::TBalancer Balancer_;
     NHttp::THttpSlicerServer server(&Balancer_);
-
     server.Start(NHttp::GetPort());
-    rebalance.join();
+
+    // std::thread rebalance(NSlicer::RebalancingThread, &Balancer_);
+
+    //rebalance.join();
     return 0;
 }

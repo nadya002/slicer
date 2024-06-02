@@ -1,13 +1,16 @@
 import requests
 import json
 import time
+import random
 
-slicer_url = 'http://localhost:8081'
+slicer_url = 'http://localhost:8080'
 
-key_count = 1000
-node_count = 10
+key_count = 6
+node_count = 6
 nodes = []
+
 current_nodes_to_ranges = []
+current_metrics_with_host = []
 
 def send_initialize_new_service_req(hosts):
     json_hosts = []
@@ -17,11 +20,12 @@ def send_initialize_new_service_req(hosts):
     headers = {'Content-Type': 'application/json'}
     requests.post(slicer_url + '/api/v1/notify_nodes', data=json.dumps(json_data), headers=headers)
 
-def get_node_mapping():
+def get_node_mapping_request():
     response = requests.get(slicer_url + '/api/v1/get_mapping')
     json_response = response.json()
     rangesToNode = []
-    for pair in json_response:
+    for pair in json_response["RangeNodePairs"]:
+        #print(pair)
         rangesToNode.append({
             "From" : pair["Range"]["From"],
             "To" : pair["Range"]["To"],
@@ -41,23 +45,104 @@ def send_upd_metrics_request(metrics):
     headers = {'Content-Type': 'application/json'}
     requests.post(slicer_url + '/api/v1/send_metric', data=json.dumps(json_data), headers=headers)
 
-def add_new_host():
 
-def delete_new_host():
+
 
 def add_new_load_for_key(mapping_load_to_key):
-    for
+    global current_nodes_to_ranges
+
+    metrics = []
+    metrics_host = []
+    load_sum = {}
+    for range in current_nodes_to_ranges:
+        load_sum[range["To"]] = 0
+
+    for key in mapping_load_to_key:
+        for range in current_nodes_to_ranges:
+            if range["From"] <= key and key <= range["To"]:
+                load_sum[range["To"]] += mapping_load_to_key[key]
+                break
+    for range in current_nodes_to_ranges:
+        #print("sum ", load_sum[range["To"]])
+        metrics.append({"From" : range["From"], "To" : range["To"], "Value" : load_sum[range["To"]]})
+
+    send_upd_metrics_request(metrics)
+
+
+def generate_new_load():
+    mapping_load_to_key = {}
+    for key in range(key_count):
+        load = random.random() * 100
+        mapping_load_to_key[key] = load
+    return mapping_load_to_key
+
+def get_key_to_node():
+    global current_nodes_to_ranges
+
+    current_nodes_to_ranges = get_node_mapping_request()
+    node_to_key = {}
+    for node in range(node_count):
+        node_to_key[str(node)] = []
+
+    for range_to_node in current_nodes_to_ranges:
+        for key in range(key_count):
+            if key >= range_to_node["From"] and key <= range_to_node["To"]:
+                node_to_key[range_to_node["Host"]].append(key)
+    return node_to_key
+
+def get_load_to_host(node_to_keys, current_load):
+    node_to_load = {}
+    for host in range(node_count):
+        node_to_load[str(host)] = 0
+
+    for node in node_to_keys:
+        for key in node_to_keys[node]:
+            node_to_load[node] += current_load[key]
+    return node_to_load
 
 def start_fake_service():
     for i in range(key_count):
         nodes.append(str(i))
     send_initialize_new_service_req(nodes)
 
+def pretty_print_load(node_to_load):
+    for node in node_to_load:
+        print("node - ", node, "load - ", node_to_load[node])
+
+def pretty_print_keys(node_to_load):
+    for node in node_to_load:
+        print("node - ", node, "keys - ", node_to_load[node])
 
 if __name__ == "__main__":
     start_fake_service()
-    while (True):
-        for i in range(1000):
+    current_load = generate_new_load()
+
+    # print(node_to_keys)
+    # print(current_load)
+    #for i in range(10):
+    node_to_keys = get_key_to_node()
+    node_to_load = get_load_to_host(node_to_keys, current_load)
+
+    pretty_print_keys(node_to_keys)
+    pretty_print_load(node_to_load)
+
+    for i in range(10):
+        for j in range(50):
+            add_new_load_for_key(current_load)
+            node_to_keys = get_key_to_node()
+            time.sleep(1)
+
+        node_to_keys = get_key_to_node()
+        node_to_load = get_load_to_host(node_to_keys, current_load)
+
+        pretty_print_keys(node_to_keys)
+        pretty_print_load(node_to_load)
+
+        print(current_nodes_to_ranges)
+
+
+
+
 
 
 

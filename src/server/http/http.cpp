@@ -7,14 +7,10 @@
 
 namespace NHttp {
 
-THttpSlicerServer::THttpSlicerServer(NSlicer::Balancer* balancer)
+THttpSlicerServer::THttpSlicerServer(NSlicer::TBalancer* balancer)
     : Balancer_(balancer)
 {
     HttpLogger_ = spdlog::basic_logger_mt("http_logger", "logger/http_logger.txt");
-
-    svr.Get("/", [](const httplib::Request &req, httplib::Response &res) {
-        res.set_content("Hello, World!", "text/plain");
-    });
 
     InitializeNotifyNodes();
     InitializeGetMapping();
@@ -23,40 +19,46 @@ THttpSlicerServer::THttpSlicerServer(NSlicer::Balancer* balancer)
 
 void THttpSlicerServer::Start(int port)
 {
-    HttpLogger_->info("Server listening on http://localhost:" + std::to_string(port));
-    spdlog::info("Server listening on http://localhost:" + std::to_string(port));
+    HttpLogger_->info("Server listening on http://0.0.0.0:" + std::to_string(port));
+    spdlog::info("Server listening on http://0.0.0.0:" + std::to_string(port));
 
-    svr.listen("localhost", port);
+    svr.listen("0.0.0.0", port);
 }
 
 void THttpSlicerServer::InitializeNotifyNodes()
 {
     svr.Post("/api/v1/notify_nodes", [&](const httplib::Request &req, httplib::Response &res) {
-        std::cerr << "notify_nodes" << std::endl;
-        std::vector<std::string> NodeIds_;
+        std::vector<std::string> newNodeIds, deletedNodeIds;
         auto body = req.body;
         auto jsonObject = nlohmann::json::parse(body);
 
         auto newHosts = jsonObject["New"];
-        auto hosts = newHosts["Hosts"];
 
-        for (auto host : hosts) {
-            NodeIds_.push_back(host["Host"]);
+        for (auto host : newHosts["Hosts"]) {
+            newNodeIds.push_back(host["Host"]);
         }
-        if (Flag_) {
-            Balancer_->Initialize(NodeIds_);
+
+        auto deletedHosts = jsonObject["Deleted"];
+
+        for (auto host : deletedHosts["Hosts"]) {
+            deletedNodeIds.push_back(host["Host"]);
         }
+
+        Balancer_->NotifyNodes(newNodeIds, deletedNodeIds);
+
     });
 }
 
 void THttpSlicerServer::InitializeGetMapping()
 {
     svr.Get("/api/v1/get_mapping", [&](const httplib::Request &req, httplib::Response &res) {
+        spdlog::debug("get_mapping");
         nlohmann::json jsonObject;
         std::vector<NSlicer::TRangesToNode> rangesToNode = Balancer_->GetMappingRangesToNodes();
         jsonObject["RangeNodePairs"] = nlohmann::json::array();
         for (auto& value : rangesToNode) {
             for (auto& range : value.Ranges) {
+                std::cerr << "from " << range.Start << " " << "to " << range.End;
                 nlohmann::json addrangeToNode;
                 addrangeToNode["Host"] = value.NodeId;
                 addrangeToNode["Range"]["From"] = range.Start;
@@ -64,6 +66,7 @@ void THttpSlicerServer::InitializeGetMapping()
                 jsonObject["RangeNodePairs"].push_back(addrangeToNode);
             }
         }
+        std::cerr << std::endl;
         std::string jsonString = jsonObject.dump();
         res.set_content(jsonString, "application/json");
     });
