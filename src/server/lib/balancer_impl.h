@@ -15,7 +15,7 @@ namespace NSlicer {
 using BalancerState = std::vector<TRangesToNode>;
 using BalancerDiff = std::vector<TDiffs>;
 
-void ApplyingDiffsToState(BalancerState& balanserState, const BalancerDiff& diff);
+void ApplyingDiffsToState(BalancerState* balanserState, const BalancerDiff& diff);
 
 class BalancerImpl
 {
@@ -29,6 +29,8 @@ public:
     void UnregisterNode(const std::vector<std::string>& nodeIds);
 
     BalancerDiff Rebalance(const std::vector<TMetric>& metrics);
+
+    BalancerDiff GetMappingRangesToNodes();
 
 private:
     class TSortRangeComparator {
@@ -54,8 +56,6 @@ private:
     std::shared_ptr<spdlog::logger> BalancingLogger_;
 
     void UpdateMetrics(const std::vector<TMetric>& metrics);
-
-    BalancerDiff GetMappingRangesToNodes();
 
     void Initialize(const std::vector<std::string>& nodeIds);
     void SplitSlices();

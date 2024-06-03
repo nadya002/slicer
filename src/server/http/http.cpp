@@ -58,7 +58,7 @@ void THttpSlicerServer::InitializeGetMapping()
         jsonObject["RangeNodePairs"] = nlohmann::json::array();
         for (auto& value : rangesToNode) {
             for (auto& range : value.Ranges) {
-                std::cerr << "from " << range.Start << " " << "to " << range.End;
+                //std::cerr << "from " << range.Start << " " << "to " << range.End;
                 nlohmann::json addrangeToNode;
                 addrangeToNode["Host"] = value.NodeId;
                 addrangeToNode["Range"]["From"] = range.Start;
@@ -66,7 +66,7 @@ void THttpSlicerServer::InitializeGetMapping()
                 jsonObject["RangeNodePairs"].push_back(addrangeToNode);
             }
         }
-        std::cerr << std::endl;
+        //std::cerr << std::endl;
         std::string jsonString = jsonObject.dump();
         res.set_content(jsonString, "application/json");
     });

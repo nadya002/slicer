@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <unistd.h>
 #include <unordered_set>
+#include <optional>
 
 namespace NSlicer {
 
@@ -21,12 +22,17 @@ BalancerState TBalancerSnapshot::GetMapping()
 
 void TBalancerSnapshot::Apply(const BalancerDiff& balancerDiff)
 {
-    ApplyingDiffsToState(state, balancerDiff);
+    ApplyingDiffsToState(&state, balancerDiff);
 }
 
 
-TBalancer::TBalancer(const BalancerState& balancerState)
+TBalancer::TBalancer(
+    const BalancerState& balancerState,
+    bool isCallback,
+    const CallbackFunc& callback)
     : BalancerImpl_(balancerState)
+    , IsCallback_(isCallback)
+    , CallbackFunc_(callback)
     , RebalancingThread_(RebalancingThreadFunc, this)
 { }
 
@@ -44,10 +50,20 @@ void TBalancer::NotifyNodes(
     const std::vector<std::string>& newNodeIds,
     const std::vector<std::string>& deletedNodeIds)
 {
+    BalancerDiff diffs;
     {
         std::lock_guard<std::mutex> lockBalancerMutex(BalancerImplMutex_);
         BalancerImpl_.RegisterNewNodes(newNodeIds);
         BalancerImpl_.UnregisterNode(deletedNodeIds);
+        diffs = BalancerImpl_.GetMappingRangesToNodes();
+    }
+
+    {
+        std::lock_guard<std::mutex> lockSnapshotMutex(SnapshotMutex_);
+        if (IsCallback_) {
+            CallbackFunc_(diffs);
+        }
+        Snapshot_.Apply(diffs);
     }
 
 }
@@ -94,6 +110,9 @@ void TBalancer::RebalancingThreadFuncImpl()
 
         {
             std::lock_guard<std::mutex> lockBalancerMutex(SnapshotMutex_);
+            if (IsCallback_) {
+                CallbackFunc_(diffs);
+            }
             Snapshot_.Apply(diffs);
         }
 
@@ -105,6 +124,7 @@ BalancerDiff TBalancer::GetMappingRangesToNodes()
 {
     {
         std::lock_guard<std::mutex> lockBalancerMutex(SnapshotMutex_);
+        //std::cerr << "GetMappingRangesToNodes " << Snapshot_.GetMapping().size() << std::endl;
         return Snapshot_.GetMapping();
     }
 }

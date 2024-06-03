@@ -11,9 +11,5 @@ int main() {
     NSlicer::TBalancer Balancer_;
     NHttp::THttpSlicerServer server(&Balancer_);
     server.Start(NHttp::GetPort());
-
-    // std::thread rebalance(NSlicer::RebalancingThread, &Balancer_);
-
-    //rebalance.join();
     return 0;
 }

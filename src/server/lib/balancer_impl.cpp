@@ -14,15 +14,15 @@
 
 namespace NSlicer {
 
-// const int MinSlicePerNode = 50;
-// const int MaxSlicePerNode = 200;
-// const int MinRecomendSlicePerNode = 100;
-// const int MaxRecomendSlicePerNode = 150;
+const int MinSlicePerNode = 50;
+const int MaxSlicePerNode = 200;
+const int MinRecomendSlicePerNode = 100;
+const int MaxRecomendSlicePerNode = 150;
 
-const int MinSlicePerNode = 2;
-const int MinRecomendSlicePerNode = 4;
-const int MaxRecomendSlicePerNode = 8;
-const int MaxSlicePerNode = 10;
+// const int MinSlicePerNode = 2;
+// const int MinRecomendSlicePerNode = 4;
+// const int MaxRecomendSlicePerNode = 8;
+// const int MaxSlicePerNode = 10;
 
 const uint64_t MaxKeyReallocForMerge = std::numeric_limits<uint64_t>::max() / 100;
 const uint64_t MaxKeyReallocForRebalance = 9 * (std::numeric_limits<uint64_t>::max() / 100);
@@ -99,64 +99,6 @@ BalancerDiff BalancerImpl::Rebalance(const std::vector<TMetric>& metrics)
     SplitSlices();
     return GetMappingRangesToNodes();
 }
-
-// void BalancerImpl::Rebalance()
-// {
-//     //spdlog::debug("Rebalance");
-//     BalancingLogger_->info("Wait for metrica");
-//     std::unique_lock<std::mutex> lk(Mutex_);
-
-//     while (!NewMetrica_ && !OnDestructor_) {
-//         spdlog::debug("Waiting fo new metrics ...");
-//         Cv_.wait(lk, [this]{ return NewMetrica_ || OnDestructor_;});
-//     }
-//     if (OnDestructor_) {
-//         break;
-//     }
-//     CurrentMappingStartIdToValue_ = LastMappingStartIdToValue_;
-//     NewMetrica_ = false;
-//     lk.unlock();
-//     //Cv_.notify_one();
-
-//     BalancingLogger_->info("Start new iteration of rebalancing");
-//     MergeSlices();
-//     RebalanceRanges();
-//     SplitSlices();
-//     lk.lock();
-//     ResultMappingRangesToNodes_ = MappingRangesToNodes_;
-//     lk.unlock();
-//     spdlog::debug("Finish");
-
-// }
-
-// void BalancerImpl::RebalancingThreadFunc()
-// {
-//     while (true) {
-//         std::unique_lock<std::mutex> lk(Mutex_);
-
-//         while (!NewMetrica_ && !OnDestructor_) {
-//             spdlog::debug("Waiting fo new metrics ...");
-//             Cv_.wait(lk, [this]{ return NewMetrica_ || OnDestructor_;});
-//         }
-//         if (OnDestructor_) {
-//             break;
-//         }
-//         CurrentMappingStartIdToValue_ = LastMappingStartIdToValue_;
-//         NewMetrica_ = false;
-//         lk.unlock();
-
-//         BalancingLogger_->info("Start new iteration of rebalancing");
-//         MergeSlices();
-//         RebalanceRanges();
-//         SplitSlices();
-
-//         lk.lock();
-//         ResultMappingRangesToNodes_ = MappingRangesToNodes_;
-//         lk.unlock();
-
-//         spdlog::debug("Finish rebalacing iteration");
-//     }
-// }
 
 std::vector<TRangesToNode> BalancerImpl::GetMappingRangesToNodes()
 {
@@ -309,6 +251,7 @@ void BalancerImpl::MergeSlices()
             break;
         }
         auto minCostRange = *(mergeCostsToRange.begin());
+
         auto cost = minCostRange.first.first;
         //std::cerr << "costs " << cost << std::endl;
         if (cost > avr && CurrentMappingStartIdToValue_.size() <= minRecommendRangeCount) {
@@ -319,6 +262,15 @@ void BalancerImpl::MergeSlices()
 
         auto firstRange = *firstRangeIt;
         auto secondRange = *secondRangeIt;
+
+        // spdlog::debug(
+        //     "Merge two ranges with load {}: ({}, {}) and ({}, {})",
+        //     cost,
+        //     firstRange.Start,
+        //     firstRange.End,
+        //     secondRange.Start,
+        //     secondRange.End);
+
         keyRealocCount += RangeSize(secondRange);
 
         // Updating MappingRangesToNodes_
@@ -401,8 +353,6 @@ void BalancerImpl::SplitSlices()
         }
 
     }
-
-
 }
 
 struct BalanceInf
@@ -412,9 +362,9 @@ struct BalanceInf
     std::string CurrentNode;
 };
 
-void ApplyingDiffsToState(BalancerState& balanserState, const BalancerDiff& diff)
+void ApplyingDiffsToState(BalancerState* balanserState, const BalancerDiff& diff)
 {
-    balanserState = diff;
+    *balanserState = diff;
 }
 
 double CountDisbalance(double a, double b)
@@ -440,6 +390,72 @@ void BalancerImpl::RebalanceRanges()
         if (keyRealocCount > MaxKeyReallocForRebalance) {
             break;
         }
+        double maxValue = -1;
+        BalanceInf curRebalance;
+        for (auto& [nodeId, rangeList] : MappingRangesToNodes_) {
+             for (auto it = rangeList.begin(); it != rangeList.end(); ++it) {
+                for (auto& nodeTo : mappingNodeIdToValue) {
+                    if (nodeTo.first != nodeId) {
+                        double firstNodeVal = mappingNodeIdToValue[nodeId];
+                        double secondNodeVal = nodeTo.second;
+                        double curDisbalance = CountDisbalance(firstNodeVal, secondNodeVal);
+                        double newFirstNodeVal = firstNodeVal - CurrentMappingStartIdToValue_[it->Start];
+                        double newSecondNodeVal = secondNodeVal + CurrentMappingStartIdToValue_[it->Start];
+                        double newDisbalanceCost = CountDisbalance(newFirstNodeVal, newSecondNodeVal);
+                        double finalValue = (curDisbalance - newDisbalanceCost) / log(RangeSize(*it) + 2);
+                        if (finalValue > maxValue) {
+                            maxValue = finalValue;
+                            curRebalance.RangeIter = it;
+                            curRebalance.NodeToMove = nodeTo.first;
+                            curRebalance.CurrentNode = nodeId;
+                        }
+                    }
+                }
+            }
+        }
+        if (maxValue <= 0) {
+            break;
+        }
+        spdlog::debug(
+            "Realoc range ({}, {}) with disbalance {} from host {} to host {}",
+            curRebalance.RangeIter->Start,
+            curRebalance.RangeIter->End,
+            maxValue,
+            curRebalance.CurrentNode,
+            curRebalance.NodeToMove);
+
+        keyRealocCount += RangeSize(*curRebalance.RangeIter);
+        auto rangeValue = CurrentMappingStartIdToValue_[curRebalance.RangeIter->Start];
+        mappingNodeIdToValue[curRebalance.NodeToMove] += rangeValue;
+        mappingNodeIdToValue[curRebalance.CurrentNode] -= rangeValue;
+        MappingRangesToNodes_[curRebalance.NodeToMove].push_back(*curRebalance.RangeIter);
+        MappingRangesToNodes_[curRebalance.CurrentNode].erase(curRebalance.RangeIter);
+    }
+
+}
+
+void BalancerImpl::RebalanceRangesV2()
+{
+    std::multimap<double, BalanceInf> balancesCost;
+    std::unordered_map<std::string, double> mappingNodeIdToValue;
+    std::multimap<double, std::string> loadToNode;
+
+    for (auto& ranges : MappingRangesToNodes_) {
+        double value = 0;
+        for (auto& range : ranges.second) {
+            value += CurrentMappingStartIdToValue_[range.Start];
+        }
+        mappingNodeIdToValue[ranges.first] = value;
+        loadToNode.insert({value, ranges.first});
+    }
+
+    uint64_t keyRealocCount = 0;
+    while (true) {
+        if (keyRealocCount > MaxKeyReallocForRebalance) {
+            break;
+        }
+        auto minLoadNode = *loadToNode.begin();
+        auto maxLoadNode = *loadToNode.rbegin();
         double maxValue = -1;
         BalanceInf curRebalance;
         for (auto& [nodeId, rangeList] : MappingRangesToNodes_) {

@@ -9,8 +9,11 @@
 #include <list>
 #include <string>
 #include <condition_variable>
+#include <functional>
 
 namespace NSlicer {
+
+using CallbackFunc = std::function<void(BalancerDiff)>;
 
 struct TBalancerSnapshot
 {
@@ -23,7 +26,10 @@ struct TBalancerSnapshot
 class TBalancer
 {
 public:
-    explicit TBalancer(const BalancerState& balancerState = {});
+    explicit TBalancer(
+        const BalancerState& balancerState = {},
+        bool isCallback = false,
+        const CallbackFunc& callback = {});
 
     ~TBalancer();
 
@@ -40,6 +46,8 @@ private:
     TBalancerSnapshot Snapshot_;
     std::vector<TMetric> LastMetrics_;
 
+    CallbackFunc CallbackFunc_;
+
     std::condition_variable Cv_;
 
     std::mutex BalancerImplMutex_;
@@ -48,6 +56,7 @@ private:
 
     std::thread RebalancingThread_;
 
+    bool IsCallback_;
     bool NewMetrica_ = false;
     bool OnDestructor_ = false;
 

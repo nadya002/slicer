@@ -5,8 +5,8 @@ import random
 
 slicer_url = 'http://localhost:8080'
 
-key_count = 6
-node_count = 6
+key_count = 100
+node_count = 10
 nodes = []
 
 current_nodes_to_ranges = []
@@ -113,6 +113,16 @@ def pretty_print_keys(node_to_load):
     for node in node_to_load:
         print("node - ", node, "keys - ", node_to_load[node])
 
+def count_disbalance(node_to_load):
+    su = 0
+    cnt = 0
+    ma = 0
+    for node in node_to_load:
+        su += node_to_load[node]
+        cnt += 1
+        ma = max(ma, node_to_load[node])
+    return ma / (su / cnt)
+
 if __name__ == "__main__":
     start_fake_service()
     current_load = generate_new_load()
@@ -125,20 +135,26 @@ if __name__ == "__main__":
 
     pretty_print_keys(node_to_keys)
     pretty_print_load(node_to_load)
+    #print(current_nodes_to_ranges)
+    f = open('a.txt','w')
 
-    for i in range(10):
-        for j in range(50):
-            add_new_load_for_key(current_load)
-            node_to_keys = get_key_to_node()
-            time.sleep(1)
-
+    for i in range(200):
+        #for j in range(50):
+        add_new_load_for_key(current_load)
         node_to_keys = get_key_to_node()
         node_to_load = get_load_to_host(node_to_keys, current_load)
+        disb = count_disbalance(node_to_load)
+        f.write(str(disb) + " ")
+        #print()
+        time.sleep(3)
 
-        pretty_print_keys(node_to_keys)
-        pretty_print_load(node_to_load)
+        # node_to_keys = get_key_to_node()
+        # node_to_load = get_load_to_host(node_to_keys, current_load)
 
-        print(current_nodes_to_ranges)
+        # pretty_print_keys(node_to_keys)
+        # pretty_print_load(node_to_load)
+
+        # print(current_nodes_to_ranges)
 
 
 
