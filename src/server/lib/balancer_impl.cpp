@@ -11,13 +11,19 @@
 #include <algorithm>
 #include <unistd.h>
 #include <unordered_set>
+#include <set>
 
 namespace NSlicer {
 
-const int MinSlicePerNode = 50;
-const int MaxSlicePerNode = 200;
-const int MinRecomendSlicePerNode = 100;
-const int MaxRecomendSlicePerNode = 150;
+// const int MinSlicePerNode = 50;
+// const int MaxSlicePerNode = 200;
+// const int MinRecomendSlicePerNode = 100;
+// const int MaxRecomendSlicePerNode = 150;
+
+const int MinSlicePerNode = 10;
+const int MaxSlicePerNode = 50;
+const int MinRecomendSlicePerNode = 20;
+const int MaxRecomendSlicePerNode = 40;
 
 // const int MinSlicePerNode = 2;
 // const int MinRecomendSlicePerNode = 4;
@@ -95,7 +101,7 @@ BalancerDiff BalancerImpl::Rebalance(const std::vector<TMetric>& metrics)
 {
     UpdateMetrics(metrics);
     MergeSlices();
-    RebalanceRanges();
+    RebalanceRangesV2();
     SplitSlices();
     return GetMappingRangesToNodes();
 }
@@ -253,7 +259,7 @@ void BalancerImpl::MergeSlices()
         auto minCostRange = *(mergeCostsToRange.begin());
 
         auto cost = minCostRange.first.first;
-        //std::cerr << "costs " << cost << std::endl;
+
         if (cost > avr && CurrentMappingStartIdToValue_.size() <= minRecommendRangeCount) {
             break;
         }
@@ -263,13 +269,13 @@ void BalancerImpl::MergeSlices()
         auto firstRange = *firstRangeIt;
         auto secondRange = *secondRangeIt;
 
-        // spdlog::debug(
-        //     "Merge two ranges with load {}: ({}, {}) and ({}, {})",
-        //     cost,
-        //     firstRange.Start,
-        //     firstRange.End,
-        //     secondRange.Start,
-        //     secondRange.End);
+        spdlog::debug(
+            "Merge two ranges with load {}: ({}, {}) and ({}, {})",
+            cost,
+            firstRange.Start,
+            firstRange.End,
+            secondRange.Start,
+            secondRange.End);
 
         keyRealocCount += RangeSize(secondRange);
 
@@ -331,6 +337,9 @@ void BalancerImpl::SplitSlices()
             }
         }
         if (rangeList.size() < MinRecomendSlicePerNode) {
+            if (rangeList.size() == 0) {
+                break;
+            }
             std::multimap<double, std::list<NSlicer::TRange>::const_iterator> valueToIter;
             for (auto it = rangeList.begin(); it != rangeList.end(); ++it) {
                 valueToIter.insert({CurrentMappingStartIdToValue_[it->Start], it});
@@ -434,19 +443,45 @@ void BalancerImpl::RebalanceRanges()
 
 }
 
+class ModuloComparator {
+public:
+    // Конструктор с параметром - число, относительно которого считается модуль
+    explicit ModuloComparator(int reference) : reference_(reference) {}
+
+    // Оператор компаратора для set
+    bool operator()(const std::pair<double, TRange>& a, const std::pair<double, TRange>& b) const {
+        // Сравнение по абсолютной разнице чисел с reference_
+        return a.first < b.first;
+    }
+
+private:
+    int reference_;  // число, относительно которого сортируем
+};
+
+struct SetComparator {
+    bool operator()(
+        const std::pair<double, std::list<NSlicer::TRange>::iterator>& a,
+        const std::pair<double, std::list<NSlicer::TRange>::iterator>& b) const {
+            return a.first < b.first;
+    }
+};
+
 void BalancerImpl::RebalanceRangesV2()
 {
     std::multimap<double, BalanceInf> balancesCost;
     std::unordered_map<std::string, double> mappingNodeIdToValue;
-    std::multimap<double, std::string> loadToNode;
+    std::set<std::pair<double, std::string>> loadToNode;
+    //TSortRangeComparator comp(&CurrentMappingStartIdToValue_);
+    std::unordered_map<std::string, std::set<std::pair<double, std::list<NSlicer::TRange>::iterator>, SetComparator>> nodeToSetRanges;
 
-    for (auto& ranges : MappingRangesToNodes_) {
+    for (auto& [nodeId, rangeList] : MappingRangesToNodes_) {
         double value = 0;
-        for (auto& range : ranges.second) {
-            value += CurrentMappingStartIdToValue_[range.Start];
+        for (auto it = rangeList.begin(); it != rangeList.end(); ++it) {
+            value += CurrentMappingStartIdToValue_[it->Start];
+            nodeToSetRanges[nodeId].insert({CurrentMappingStartIdToValue_[it->Start], it});
         }
-        mappingNodeIdToValue[ranges.first] = value;
-        loadToNode.insert({value, ranges.first});
+        mappingNodeIdToValue[nodeId] = value;
+        loadToNode.insert({value, nodeId});
     }
 
     uint64_t keyRealocCount = 0;
@@ -456,46 +491,46 @@ void BalancerImpl::RebalanceRangesV2()
         }
         auto minLoadNode = *loadToNode.begin();
         auto maxLoadNode = *loadToNode.rbegin();
-        double maxValue = -1;
-        BalanceInf curRebalance;
-        for (auto& [nodeId, rangeList] : MappingRangesToNodes_) {
-             for (auto it = rangeList.begin(); it != rangeList.end(); ++it) {
-                for (auto& nodeTo : mappingNodeIdToValue) {
-                    if (nodeTo.first != nodeId) {
-                        double firstNodeVal = mappingNodeIdToValue[nodeId];
-                        double secondNodeVal = nodeTo.second;
-                        double curDisbalance = CountDisbalance(firstNodeVal, secondNodeVal);
-                        double newFirstNodeVal = firstNodeVal - CurrentMappingStartIdToValue_[it->Start];
-                        double newSecondNodeVal = secondNodeVal + CurrentMappingStartIdToValue_[it->Start];
-                        double newDisbalanceCost = CountDisbalance(newFirstNodeVal, newSecondNodeVal);
-                        double finalValue = (curDisbalance - newDisbalanceCost) / log(RangeSize(*it) + 2);
-                        if (finalValue > maxValue) {
-                            maxValue = finalValue;
-                            curRebalance.RangeIter = it;
-                            curRebalance.NodeToMove = nodeTo.first;
-                            curRebalance.CurrentNode = nodeId;
-                        }
-                    }
-                }
-            }
-        }
-        if (maxValue <= 0) {
-            break;
-        }
-        spdlog::debug(
-            "Realoc range ({}, {}) with disbalance {} from host {} to host {}",
-            curRebalance.RangeIter->Start,
-            curRebalance.RangeIter->End,
-            maxValue,
-            curRebalance.CurrentNode,
-            curRebalance.NodeToMove);
 
-        keyRealocCount += RangeSize(*curRebalance.RangeIter);
-        auto rangeValue = CurrentMappingStartIdToValue_[curRebalance.RangeIter->Start];
-        mappingNodeIdToValue[curRebalance.NodeToMove] += rangeValue;
-        mappingNodeIdToValue[curRebalance.CurrentNode] -= rangeValue;
-        MappingRangesToNodes_[curRebalance.NodeToMove].push_back(*curRebalance.RangeIter);
-        MappingRangesToNodes_[curRebalance.CurrentNode].erase(curRebalance.RangeIter);
+        auto maRealocLoad = (maxLoadNode.first - minLoadNode.first) / 2;
+        auto maxNodeId = maxLoadNode.second;
+        auto minNodeId = minLoadNode.second;
+
+        auto it = nodeToSetRanges[maxNodeId].upper_bound({maRealocLoad, {}});
+
+        if (it == nodeToSetRanges[maxNodeId].begin()) {
+            break;
+        } else {
+            it--;
+            if (it->first == 0) {
+                break;
+            }
+
+            spdlog::debug(
+                "Realoc range ({}, {}) with disbalance {} from host {} to host {}",
+                (it->second)->Start,
+                (it->second)->End,
+                it->first,
+                maxNodeId,
+                minNodeId);
+
+            keyRealocCount += RangeSize(*(it->second));
+            loadToNode.erase(loadToNode.begin());
+            loadToNode.erase(maxLoadNode);
+            minLoadNode.first += it->first;
+            loadToNode.insert(minLoadNode);
+            maxLoadNode.first -= it->first;
+            loadToNode.insert(maxLoadNode);
+
+            auto newRange = MappingRangesToNodes_[minNodeId].insert(MappingRangesToNodes_[minNodeId].end(), *(it->second));
+
+            MappingRangesToNodes_[maxNodeId].erase(it->second);
+
+            auto newIt = *it;
+            newIt.second = newRange;
+            nodeToSetRanges[maxNodeId].erase(it);
+            nodeToSetRanges[minNodeId].insert(newIt);
+        }
     }
 
 }

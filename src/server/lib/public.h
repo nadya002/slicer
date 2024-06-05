@@ -25,6 +25,13 @@ struct TRangesToNode
     std::list<TRange> Ranges;
 };
 
+struct TDiffsV2
+{
+    std::string NodeId;
+    std::list<TRange> deletedRanges;
+    std::list<TRange> newRanges;
+};
+
 using TDiffs = TRangesToNode;
 
 } // NSlicer

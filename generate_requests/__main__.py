@@ -101,7 +101,7 @@ def get_load_to_host(node_to_keys, current_load):
     return node_to_load
 
 def start_fake_service():
-    for i in range(key_count):
+    for i in range(node_count):
         nodes.append(str(i))
     send_initialize_new_service_req(nodes)
 
@@ -136,17 +136,18 @@ if __name__ == "__main__":
     pretty_print_keys(node_to_keys)
     pretty_print_load(node_to_load)
     #print(current_nodes_to_ranges)
-    f = open('a.txt','w')
+    f = open('b.txt','w')
+    time.sleep(2)
 
     for i in range(200):
         #for j in range(50):
-        add_new_load_for_key(current_load)
         node_to_keys = get_key_to_node()
         node_to_load = get_load_to_host(node_to_keys, current_load)
         disb = count_disbalance(node_to_load)
         f.write(str(disb) + " ")
+        add_new_load_for_key(current_load)
         #print()
-        time.sleep(3)
+        time.sleep(2)
 
         # node_to_keys = get_key_to_node()
         # node_to_load = get_load_to_host(node_to_keys, current_load)

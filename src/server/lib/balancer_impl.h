@@ -12,6 +12,12 @@
 
 namespace NSlicer {
 
+struct BalancerDiffV2
+{
+    int DiffId;
+    std::vector<TDiffsV2> Diffs;
+};
+
 using BalancerState = std::vector<TRangesToNode>;
 using BalancerDiff = std::vector<TDiffs>;
 
@@ -37,7 +43,10 @@ private:
     public:
         std::unordered_map<uint64_t, double>* CurrentMappingStartIdToValue_;
 
-        TSortRangeComparator(std::unordered_map<uint64_t, double>* mappingStartIdToValue)
+        TSortRangeComparator()
+            {}
+
+        explicit TSortRangeComparator(std::unordered_map<uint64_t, double>* mappingStartIdToValue)
             : CurrentMappingStartIdToValue_(mappingStartIdToValue) {}
 
         bool operator()(const TRange& a, const TRange& b) {
@@ -62,6 +71,7 @@ private:
     void RebalanceRanges();
     void MergeSlices();
     double ComputeAverage();
+    void RebalanceRangesV2();
 
     // void RebalancingThreadFunc();
     std::vector<std::list<TRange>::iterator> ExtractAllRanges();
