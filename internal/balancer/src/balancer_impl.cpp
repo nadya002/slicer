@@ -1,6 +1,6 @@
-#include "balancer.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
+#include "balancer.hpp"
 
 #include <cmath>
 #include <limits>
@@ -13,7 +13,8 @@
 #include <unordered_set>
 #include <set>
 
-namespace NSlicer {
+namespace balancer {
+
 
 // const int MinSlicePerNode = 50;
 // const int MaxSlicePerNode = 200;
@@ -572,4 +573,4 @@ double BalancerImpl::ComputeAverage()
     return cnt != 0 ? su / cnt : 0;
 }
 
-} // NSlicer
+}

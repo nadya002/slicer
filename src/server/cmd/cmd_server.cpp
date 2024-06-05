@@ -6,7 +6,10 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "http.h"
 
-void simpleCallback(NSlicer::BalancerDiff diff,  std::function<void(bool, NSlicer::TBalancer*)> func, NSlicer::TBalancer* balancer)
+void simpleCallback(
+    NSlicer::BalancerDiff diff,
+    std::function<void(bool, NSlicer::TBalancer*)> func,
+    NSlicer::TBalancer* balancer)
 {
     func(true, balancer);
 }

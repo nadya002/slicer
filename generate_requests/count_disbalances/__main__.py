@@ -5,8 +5,8 @@ import random
 
 slicer_url = 'http://localhost:8080'
 
-key_count = 100
-node_count = 10
+key_count = 1000
+node_count = 20
 nodes = []
 
 current_nodes_to_ranges = []
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     pretty_print_keys(node_to_keys)
     pretty_print_load(node_to_load)
     #print(current_nodes_to_ranges)
-    f = open('c.txt','w')
+    f = open('d.txt','w')
     time.sleep(2)
 
     for i in range(200):
@@ -144,7 +144,7 @@ if __name__ == "__main__":
         node_to_keys = get_key_to_node()
         node_to_load = get_load_to_host(node_to_keys, current_load)
         disb = count_disbalance(node_to_load)
-        f.write(str(disb) + " ")
+        f.write(str(disb) + ", ")
         add_new_load_for_key(current_load)
         #print()
         time.sleep(2)

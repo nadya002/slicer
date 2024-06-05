@@ -76,7 +76,7 @@ def generate_new_load():
         mapping_load_to_key[key] = load
     return mapping_load_to_key
 
-def get_key_to_node():
+def get_node_to_keys():
     global current_nodes_to_ranges
 
     current_nodes_to_ranges = get_node_mapping_request()
@@ -123,6 +123,21 @@ def count_disbalance(node_to_load):
         ma = max(ma, node_to_load[node])
     return ma / (su / cnt)
 
+
+def count_realoc(prev_key_to_node, key_to_node):
+    realoc_keys = 0
+    for key in prev_key_to_node:
+        if prev_key_to_node[key] != key_to_node[key]:
+            realoc_keys += 1
+    return realoc_keys / key_count
+
+def get_key_to_node(node_to_keys):
+    key_to_node = {}
+    for node in node_to_keys:
+        for key in node_to_keys[node]:
+            key_to_node[key] = node
+    return key_to_node
+
 if __name__ == "__main__":
     start_fake_service()
     current_load = generate_new_load()
@@ -130,7 +145,7 @@ if __name__ == "__main__":
     # print(node_to_keys)
     # print(current_load)
     #for i in range(10):
-    node_to_keys = get_key_to_node()
+    node_to_keys = get_node_to_keys()
     node_to_load = get_load_to_host(node_to_keys, current_load)
 
     pretty_print_keys(node_to_keys)
@@ -138,22 +153,22 @@ if __name__ == "__main__":
     #print(current_nodes_to_ranges)
     f = open('b.txt','w')
     time.sleep(2)
-
+    prev_key_to_node = get_key_to_node(node_to_keys)
     for i in range(200):
-        #for j in range(50):
-        node_to_keys = get_key_to_node()
+
+        node_to_keys = get_node_to_keys()
         node_to_load = get_load_to_host(node_to_keys, current_load)
-        disb = count_disbalance(node_to_load)
-        f.write(str(disb) + " ")
         add_new_load_for_key(current_load)
-        #print()
-        time.sleep(2)
 
-        # node_to_keys = get_key_to_node()
-        # node_to_load = get_load_to_host(node_to_keys, current_load)
+        time.sleep(1)
 
-        # pretty_print_keys(node_to_keys)
-        # pretty_print_load(node_to_load)
+        node_to_keys = get_node_to_keys()
+        key_to_node = get_key_to_node(node_to_keys)
 
-        # print(current_nodes_to_ranges)
+        real = count_realoc(prev_key_to_node, key_to_node)
+        f.write(str(real) + ", ")
+
+        prev_key_to_node = key_to_node
+
+
 
