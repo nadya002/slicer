@@ -44,16 +44,20 @@ uint64_t RangeSize(const TRange& range)
 
 BalancerImpl::BalancerImpl(const BalancerState& rangesToNode)
 {
+    spdlog::debug("BalancerImpl");
     for (auto& node : rangesToNode) {
         MappingRangesToNodes_[node.NodeId] = node.Ranges;
+        for (auto& range : node.Ranges) {
+            MappingStartIdToEndId_[range.Start] = range.End;
+        }
     }
-    BalancingLogger_ = spdlog::basic_logger_mt("rebalance_logger", "logger/rebalancing_logger.txt");
-    BalancingLogger_->flush_on(spdlog::level::info);
+    // BalancingLogger_ = spdlog::basic_logger_mt("rebalance_logger", "logger/rebalancing_logger.txt");
+    // BalancingLogger_->flush_on(spdlog::level::info);
 }
 
 void BalancerImpl::Initialize(const std::vector<std::string>& nodeIds)
 {
-    BalancingLogger_->info("Initialize nodes");
+    //BalancingLogger_->info("Initialize nodes");
     if (nodeIds.size() > 0) {
         int64_t nodeCount = nodeIds.size();
         auto slices = SplitSpecificSlice(TRange{
@@ -72,7 +76,7 @@ void BalancerImpl::Initialize(const std::vector<std::string>& nodeIds)
 
 void BalancerImpl::UpdateMetrics(const std::vector<TMetric>& metrics)
 {
-    BalancingLogger_->info("UpdateMetrics");
+    //BalancingLogger_->info("UpdateMetrics");
 
     for (auto value : metrics) {
         if (MappingStartIdToEndId_.find(value.Range.Start) != MappingStartIdToEndId_.end() &&

@@ -13,7 +13,12 @@
 
 namespace NSlicer {
 
-using CallbackFunc = std::function<void(BalancerDiff)>;
+class TBalancer;
+
+//TBalancer* currentBalancer;
+
+using CallbackFunc = std::function<void(BalancerDiff, std::function<void(bool, TBalancer*)>, TBalancer*)>;
+
 
 struct TBalancerSnapshot
 {
@@ -27,9 +32,8 @@ class TBalancer
 {
 public:
     explicit TBalancer(
-        const BalancerState& balancerState = {},
-        bool isCallback = false,
-        const CallbackFunc& callback = {});
+        const BalancerState& balancerState,
+        const CallbackFunc& callback);
 
     ~TBalancer();
 
@@ -41,14 +45,19 @@ public:
         const std::vector<std::string>& newNodeIds,
         const std::vector<std::string>& deletedNodeIds);
 
+    void ApplyDiffs(bool isSuccess);
+
 private:
     BalancerImpl BalancerImpl_;
+
+    BalancerDiff CurrentBalancerDiff_;
     TBalancerSnapshot Snapshot_;
     std::vector<TMetric> LastMetrics_;
 
     CallbackFunc CallbackFunc_;
 
     std::condition_variable Cv_;
+    std::condition_variable SnapshotCv_;
 
     std::mutex BalancerImplMutex_;
     std::mutex SnapshotMutex_;
@@ -59,8 +68,10 @@ private:
     bool IsCallback_;
     bool NewMetrica_ = false;
     bool OnDestructor_ = false;
+    bool IsReplicated = false;
 
     void RebalancingThreadFuncImpl();
+    void TryToApplyDiffs(const BalancerDiff& diffs);
 
     static void RebalancingThreadFunc(TBalancer* balancer);
 };

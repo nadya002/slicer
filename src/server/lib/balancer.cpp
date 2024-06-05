@@ -28,13 +28,27 @@ void TBalancerSnapshot::Apply(const BalancerDiff& balancerDiff)
 
 TBalancer::TBalancer(
     const BalancerState& balancerState,
-    bool isCallback,
     const CallbackFunc& callback)
     : BalancerImpl_(balancerState)
-    , IsCallback_(isCallback)
     , CallbackFunc_(callback)
     , RebalancingThread_(RebalancingThreadFunc, this)
 { }
+
+void TBalancer::ApplyDiffs(bool isSuccess)
+{
+    spdlog::debug("apply diffs");
+    {
+        //std::lock_guard<std::mutex> lockSnapshotMutex(SnapshotMutex_);
+        //spdlog::debug("lockSnapshotMutex");
+        if (isSuccess) {
+            spdlog::debug("success apply diffs");
+            Snapshot_.Apply(CurrentBalancerDiff_);
+        }
+    }
+    IsReplicated = true;
+    SnapshotCv_.notify_one();
+
+}
 
 TBalancer::~TBalancer()
 {
@@ -46,24 +60,42 @@ TBalancer::~TBalancer()
     RebalancingThread_.join();
 }
 
+void TBalancer::TryToApplyDiffs(const BalancerDiff& diffs)
+{
+    spdlog::debug("try to apply diffs");
+    std::unique_lock<std::mutex> lockSnapshotMutex(SnapshotMutex_);
+    IsReplicated = false;
+    CurrentBalancerDiff_ = diffs;
+    auto applyingFunc = [](bool isSuccess, TBalancer* currentBalancer){currentBalancer->ApplyDiffs(isSuccess); };
+
+    CallbackFunc_(diffs, applyingFunc, this);
+
+    while (!IsReplicated) {
+        SnapshotCv_.wait(lockSnapshotMutex, [this]{ return IsReplicated;});
+    }
+
+    lockSnapshotMutex.unlock();
+}
+
 void TBalancer::NotifyNodes(
     const std::vector<std::string>& newNodeIds,
     const std::vector<std::string>& deletedNodeIds)
 {
+    spdlog::debug("Notify nodes");
     BalancerDiff diffs;
     {
         std::lock_guard<std::mutex> lockBalancerMutex(BalancerImplMutex_);
-        BalancerImpl_.RegisterNewNodes(newNodeIds);
-        BalancerImpl_.UnregisterNode(deletedNodeIds);
-        diffs = BalancerImpl_.GetMappingRangesToNodes();
-    }
+        //spdlog::debug("lockBalancerMutex");
+        BalancerImpl balancerImpl(Snapshot_.GetMapping());
+        //spdlog::debug("balancerImpl");
+        balancerImpl.RegisterNewNodes(newNodeIds);
+        balancerImpl.UnregisterNode(deletedNodeIds);
+        diffs = balancerImpl.GetMappingRangesToNodes();
 
-    {
-        std::lock_guard<std::mutex> lockSnapshotMutex(SnapshotMutex_);
-        if (IsCallback_) {
-            CallbackFunc_(diffs);
-        }
-        Snapshot_.Apply(diffs);
+        //spdlog::debug("TryToApplyDiffs");
+        TryToApplyDiffs(diffs);
+        //spdlog::debug("TryToApplyDiffs finish");
+
     }
 
 }
@@ -90,7 +122,7 @@ void TBalancer::RebalancingThreadFuncImpl()
         std::unique_lock<std::mutex> lk(MetricsMutex_);
 
         while (!NewMetrica_ && !OnDestructor_) {
-            spdlog::debug("Waiting fo new metrics ...");
+            spdlog::debug("Waiting for new metrics ...");
             Cv_.wait(lk, [this]{ return NewMetrica_ || OnDestructor_;});
         }
         if (OnDestructor_) {
@@ -102,18 +134,13 @@ void TBalancer::RebalancingThreadFuncImpl()
         BalancerDiff diffs;
         {
             std::lock_guard<std::mutex> lockBalancerMutex(BalancerImplMutex_);
-            if (!BalancerImpl_.CheckMetrics(LastMetrics_)) {
+
+            BalancerImpl balancerImpl(Snapshot_.GetMapping());
+            if (!balancerImpl.CheckMetrics(LastMetrics_)) {
                 continue;
             }
-            diffs = BalancerImpl_.Rebalance(LastMetrics_);
-        }
-
-        {
-            std::lock_guard<std::mutex> lockBalancerMutex(SnapshotMutex_);
-            if (IsCallback_) {
-                CallbackFunc_(diffs);
-            }
-            Snapshot_.Apply(diffs);
+            diffs = balancerImpl.Rebalance(LastMetrics_);
+            TryToApplyDiffs(diffs);
         }
 
         spdlog::debug("Finish rebalacing iteration");
