@@ -15,8 +15,6 @@ namespace balancer {
 
 class TBalancer;
 
-//TBalancer* currentBalancer;
-
 using CallbackFunc = std::function<void(BalancerDiff, std::function<void(bool)>)>;
 
 

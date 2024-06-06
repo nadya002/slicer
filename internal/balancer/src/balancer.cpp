@@ -30,12 +30,9 @@ TBalancer::TBalancer(
     : BalancerImpl_(balancerState), CallbackFunc_(callback), RebalancingThread_(RebalancingThreadFunc, this) {}
 
 void TBalancer::ApplyDiffs(bool isSuccess) {
-    spdlog::debug("apply diffs");
     {
-        //std::lock_guard<std::mutex> lockSnapshotMutex(SnapshotMutex_);
-        //spdlog::debug("lockSnapshotMutex");
         if (isSuccess) {
-            spdlog::debug("success apply diffs");
+            spdlog::debug("apply diffs");
             Snapshot_.Apply(CurrentBalancerDiff_);
         }
     }
@@ -84,9 +81,7 @@ void TBalancer::NotifyNodes(
         balancerImpl.UnregisterNode(deletedNodeIds);
         diffs = balancerImpl.GetMappingRangesToNodes();
 
-        //spdlog::debug("TryToApplyDiffs");
         TryToApplyDiffs(diffs);
-        //spdlog::debug("TryToApplyDiffs finish");
     }
 }
 
@@ -137,7 +132,6 @@ void TBalancer::RebalancingThreadFuncImpl() {
 BalancerDiff TBalancer::GetMappingRangesToNodes() {
     {
         std::lock_guard<std::mutex> lockBalancerMutex(SnapshotMutex_);
-        //std::cerr << "GetMappingRangesToNodes " << Snapshot_.GetMapping().size() << std::endl;
         return Snapshot_.GetMapping();
     }
 }
