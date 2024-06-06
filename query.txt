@@ -1,0 +1,10 @@
+curl -X POST http://localhost:8080/api/v1/notify_nodes \
+-H "Content-Type: application/json" \
+-d '{"New":{"Hosts":[{"Host":"10.244.0.16"}]},"Disconnected":{"Hosts":null}}'
+
+
+curl -X GET http://localhost:8081/api/v1/get_mapping
+
+curl -X POST http://localhost:8081/api/v1/send_metric \
+-H "Content-Type: application/json" \
+-d '{"Metrics":[{"Range":{"From":0,"To":1},"Value":100}]}'
