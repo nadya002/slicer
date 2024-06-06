@@ -366,7 +366,7 @@ void BalancerImpl::SplitSlices()
             if (rangeList.size() == 0) {
                 break;
             }
-            std::multimap<double, std::list<NSlicer::TRange>::const_iterator> valueToIter;
+            std::multimap<double, std::list<TRange>::const_iterator> valueToIter;
             for (auto it = rangeList.begin(); it != rangeList.end(); ++it) {
                 valueToIter.insert({CurrentMappingStartIdToValue_[it->Start], it});
             }
@@ -392,7 +392,7 @@ void BalancerImpl::SplitSlices()
 
 struct BalanceInf
 {
-    std::list<NSlicer::TRange>::iterator RangeIter;
+    std::list<TRange>::iterator RangeIter;
     std::string NodeToMove;
     std::string CurrentNode;
 };
@@ -486,8 +486,8 @@ private:
 
 struct SetComparator {
     bool operator()(
-        const std::pair<double, std::list<NSlicer::TRange>::iterator>& a,
-        const std::pair<double, std::list<NSlicer::TRange>::iterator>& b) const {
+        const std::pair<double, std::list<TRange>::iterator>& a,
+        const std::pair<double, std::list<TRange>::iterator>& b) const {
             return a.first < b.first;
     }
 };
@@ -498,7 +498,7 @@ void BalancerImpl::RebalanceRangesV2()
     std::unordered_map<std::string, double> mappingNodeIdToValue;
     std::set<std::pair<double, std::string>> loadToNode;
     //TSortRangeComparator comp(&CurrentMappingStartIdToValue_);
-    std::unordered_map<std::string, std::set<std::pair<double, std::list<NSlicer::TRange>::iterator>, SetComparator>> nodeToSetRanges;
+    std::unordered_map<std::string, std::set<std::pair<double, std::list<TRange>::iterator>, SetComparator>> nodeToSetRanges;
 
     for (auto& [nodeId, rangeList] : MappingRangesToNodes_) {
         double value = 0;
