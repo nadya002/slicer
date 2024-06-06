@@ -36,7 +36,11 @@ public:
 
     BalancerDiff Rebalance(const std::vector<TMetric>& metrics);
 
+    BalancerDiffV2 RebalanceV2(const std::vector<TMetric>& metrics);
+
     BalancerDiff GetMappingRangesToNodes();
+
+    BalancerDiffV2 GetMappingRangesToNodesV2(std::unordered_map<std::string, std::list<TRange>>& oldMappingRangesToNode);
 
 private:
     class TSortRangeComparator {

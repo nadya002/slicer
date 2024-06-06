@@ -60,26 +60,26 @@ void prettyPrint(const std::vector<TRangesToNode>& ranges, std::map<uint64_t, do
     }
 }
 
-// TEST(InitializeTest, SimpleTest) {
-//     std::vector<std::string> NodeIds;
-//     NodeIds.push_back("localhost");
-//     NSlicer::Balancer balancer;
-//     balancer.Initialize(NodeIds);
-//     auto res = balancer.GetMappingRangesToNodes();
-//     EXPECT_EQ(res.begin()->NodeId, "localhost");
-//     EXPECT_TRUE(CheckAllRanges(res));
-// }
+TEST(InitializeTest, SimpleTest) {
+    std::vector<std::string> NodeIds;
+    NodeIds.push_back("localhost");
+    NSlicer::Balancer balancer;
+    balancer.Initialize(NodeIds);
+    auto res = balancer.GetMappingRangesToNodes();
+    EXPECT_EQ(res.begin()->NodeId, "localhost");
+    EXPECT_TRUE(CheckAllRanges(res));
+}
 
-// TEST(InitializeTest, SimpleTest2) {
-//     std::vector<std::string> NodeIds;
-//     NodeIds.push_back("localhost");
-//     NodeIds.push_back("172.12.31.32");
-//     NSlicer::Balancer balancer;
-//     balancer.Initialize(NodeIds);
-//     auto res = balancer.GetMappingRangesToNodes();
-//     EXPECT_TRUE(res.begin()->Ranges.size() > 50 && res.begin()->Ranges.size() < 200);
-//     EXPECT_TRUE(CheckAllRanges(res));
-// }
+TEST(InitializeTest, SimpleTest2) {
+    std::vector<std::string> NodeIds;
+    NodeIds.push_back("localhost");
+    NodeIds.push_back("172.12.31.32");
+    NSlicer::Balancer balancer;
+    balancer.Initialize(NodeIds);
+    auto res = balancer.GetMappingRangesToNodes();
+    EXPECT_TRUE(res.begin()->Ranges.size() > 50 && res.begin()->Ranges.size() < 200);
+    EXPECT_TRUE(CheckAllRanges(res));
+}
 
 // TEST(InitializeTest, SeveralNodes) {
 //     std::vector<std::string> NodeIds;

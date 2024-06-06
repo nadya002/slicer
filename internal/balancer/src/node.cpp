@@ -75,6 +75,24 @@ public:
       res.set_content(jsonString, "application/json");
     });
 
+    http.Get("/api/v2/get_mapping", [&](const httplib::Request &req, httplib::Response &res) {
+      spdlog::debug("get_mapping");
+      nlohmann::json jsonObject;
+      std::vector<TRangesToNode> rangesToNode = replicator.GetMappingRangesToNodes();
+      jsonObject["RangeNodePairs"] = nlohmann::json::array();
+      for (auto &value : rangesToNode) {
+        for (auto &range : value.Ranges) {
+          nlohmann::json addrangeToNode;
+          addrangeToNode["Host"] = value.NodeId;
+          addrangeToNode["Range"]["From"] = range.Start;
+          addrangeToNode["Range"]["To"] = range.End;
+          jsonObject["RangeNodePairs"].push_back(addrangeToNode);
+        }
+      }
+      std::string jsonString = jsonObject.dump();
+      res.set_content(jsonString, "application/json");
+    });
+
     http.Post("/api/v1/send_metric", [&](const httplib::Request &req, httplib::Response &res) {
       std::vector<TMetric> metrics;
       auto body = req.body;

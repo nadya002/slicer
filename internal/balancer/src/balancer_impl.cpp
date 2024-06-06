@@ -16,15 +16,15 @@
 namespace balancer {
 
 
-// const int MinSlicePerNode = 50;
-// const int MaxSlicePerNode = 200;
-// const int MinRecomendSlicePerNode = 100;
-// const int MaxRecomendSlicePerNode = 150;
+const int MinSlicePerNode = 50;
+const int MaxSlicePerNode = 200;
+const int MinRecomendSlicePerNode = 100;
+const int MaxRecomendSlicePerNode = 150;
 
-const int MinSlicePerNode = 10;
-const int MaxSlicePerNode = 50;
-const int MinRecomendSlicePerNode = 20;
-const int MaxRecomendSlicePerNode = 40;
+// const int MinSlicePerNode = 10;
+// const int MaxSlicePerNode = 50;
+// const int MinRecomendSlicePerNode = 20;
+// const int MaxRecomendSlicePerNode = 40;
 
 // const int MinSlicePerNode = 2;
 // const int MinRecomendSlicePerNode = 4;
@@ -111,6 +111,16 @@ BalancerDiff BalancerImpl::Rebalance(const std::vector<TMetric>& metrics)
     return GetMappingRangesToNodes();
 }
 
+BalancerDiffV2 BalancerImpl::RebalanceV2(const std::vector<TMetric>& metrics)
+{
+    auto oldMappingRangesToNode = MappingRangesToNodes_;
+    UpdateMetrics(metrics);
+    MergeSlices();
+    RebalanceRangesV2();
+    SplitSlices();
+    return GetMappingRangesToNodesV2(oldMappingRangesToNode);
+}
+
 std::vector<TRangesToNode> BalancerImpl::GetMappingRangesToNodes()
 {
     std::vector<TRangesToNode> result;
@@ -119,6 +129,37 @@ std::vector<TRangesToNode> BalancerImpl::GetMappingRangesToNodes()
             .NodeId = nodeId,
             .Ranges = ranges
         });
+    }
+    return result;
+}
+
+BalancerDiffV2 BalancerImpl::GetMappingRangesToNodesV2(
+    std::unordered_map<std::string, std::list<TRange>>& oldMappingRangesToNode)
+{
+    BalancerDiffV2 result;
+    for (const auto& [nodeId, ranges] : MappingRangesToNodes_) {
+        std::set<TRange> oldRange;
+        std::set<TRange> newRange;
+        for (auto& range : ranges) {
+            newRange.insert(range);
+        }
+        auto val = oldMappingRangesToNode[nodeId];
+        for (auto& range : val) {
+            if (newRange.find(range) == newRange.end()) {
+                oldRange.insert(range);
+            } else {
+                newRange.erase(range);
+            }
+        }
+        TDiffsV2 diffs;
+        diffs.NodeId = nodeId;
+        for (auto& range : newRange) {
+            diffs.newRanges.push_back(range);
+        }
+        for (auto& range : oldRange) {
+            diffs.deletedRanges.push_back(range);
+        }
+        result.Diffs.push_back(diffs);
     }
     return result;
 }
